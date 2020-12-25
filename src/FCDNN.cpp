@@ -2,7 +2,10 @@
 #include <vector>       // std::vector, std::begin, std::end
 #include <cstring>      //memset
 #include <cmath>        //exp
+#include <cstdlib>      //rand
 #include "FCDNN.h"
+
+#include <stdio.h>
 
 float Sigmoid(float x)
 {
@@ -15,6 +18,11 @@ float DSigmoid(float x)
     return r  * (1-r);
 }
 
+float FCDNN::RandomNumber()
+{
+    return static_cast <float> (rand()) / static_cast <float> (RAND_MAX); 
+}
+
 FCDNN::FCDNN(float *x, int sizeOfx, int nLayers, int neuronsPerLayer, int nOutputNeurons, float learningRate)
 {
     this->nLayers = nLayers;
@@ -23,6 +31,7 @@ FCDNN::FCDNN(float *x, int sizeOfx, int nLayers, int neuronsPerLayer, int nOutpu
     this->nOutputNeurons = nOutputNeurons;
     this->inputXSize = sizeOfx;
     this->learningRate = learningRate;
+    srand (static_cast <unsigned> (0));
     InitializeInput(x, sizeOfx);
     InitializeW();
     InitializeY();
@@ -64,6 +73,9 @@ void FCDNN::InitializeInputW()
     inputW = new float*[neuronsPerLayer];
     for(int i =0; i<neuronsPerLayer; i++)
         inputW[i] = new float [inputNParams];
+    for(int i =0; i<neuronsPerLayer; i++)
+        for(int j =0; j<inputNParams; j++)
+            inputW[i][j] = RandomNumber();
 
 }
 
@@ -72,10 +84,15 @@ void FCDNN::InitializeW()
 {
     W = new float**[nLayers];
     for(int i =0; i<nLayers; i++)
-	W[i] = new float *[neuronsPerLayer];
+        W[i] = new float *[neuronsPerLayer];
     for(int i =0; i<nLayers; i++)
-	for(int j =0; j<neuronsPerLayer; j++)
-	    W[i][j] = new float [nParams];
+        for(int j =0; j<neuronsPerLayer; j++)
+            W[i][j] = new float [nParams];
+
+    for(int l=0; l<nLayers; l++)
+        for(int i =0; i<neuronsPerLayer; i++)
+            for(int j = 0; j < nParams; j++)
+                 W[l][i][j] = RandomNumber();
 
 }
 void FCDNN::InitializeY()
@@ -102,7 +119,10 @@ void FCDNN::InitializeOutputW()
 {
     outputW = new float*[nOutputNeurons];
     for(int i =0; i<nOutputNeurons; i++)
-	outputW[i] = new float [nParams];
+        outputW[i] = new float [nParams];
+    for(int i =0; i<nOutputNeurons; i++)
+        for(int j =0; j<nParams; j++)
+            outputW[i][j] = RandomNumber();
 
 }
 //
@@ -119,14 +139,60 @@ void FCDNN::Train(float **rawX, float **labels, int sampleSize)
     for(int l = 0; l<nLayers; l++)
         deltas[l] = new float[neuronsPerLayer];
 
-    for (int i = 0; i < 1000; i++)
+    for (int i = 0; i < 10000; i++)
     {
+        //printf("\n\r Iteracion %i", i);
         for(int s = 0; s<sampleSize; s++)
         {
             float *x = AddInputBias(rawX[s]);
             FeedFordward(x);
+
+            //Test
+            //printf("\n===================================================");
+            //printf("\n Input [");
+            //for(int z = 0; z<inputXSize+1; z++)
+            //    printf("%f ", x[z]);
+            //printf("]\n");
+
+            //ShowWeights();
+            //char *a;
+            //if(inputW[0][0] > 10 || inputW[0][0] < -10)
+            //    scanf("%s",a);
+
+
+            //printf("\n y and nets");
+            //for(int n=0; n<nLayers; n++){
+            //    printf("\n layer %i => ",n);
+            //    for(int m =0; m<neuronsPerLayer; m++){
+            //        printf("y = %f ",y[n][m]);
+            //        printf("net = %f ",net[n][m]);
+            //    }
+            //}
+            //printf("\n");
+
+            //printf("\n Output");
+            //for(int z =0; z<nOutputNeurons; z++)
+            //    printf("%f ", output[z]);
+            //printf("\n");
+
             GradientBackPropagation(labels[s], deltas, outputDeltas);
             StochasticWeightsUpdate(x, deltas, outputDeltas);
+
+
+            //printf("\n Output deltas");
+            //for(int z =0; z<nOutputNeurons; z++)
+            //    printf("%f ", outputDeltas[z]);
+
+            //printf("\n Hiden deltas");
+            //for(int l = 0; l<nLayers; l++){
+            //    printf("\n layer %i => ",l);
+            //    for(int m =0; m<neuronsPerLayer; m++)
+            //        printf("%f ",deltas[l][m]);
+            //}
+            //printf("\n New weights");
+            //ShowWeights();
+            //printf("\n===================================================");
+
         }
     }
 
@@ -136,8 +202,56 @@ void FCDNN::Train(float **rawX, float **labels, int sampleSize)
 }
 
 
+void FCDNN::ShowWeights()
+{
+
+    printf("\n");
+    printf("Input weights\n");
+    for(int i =0; i<neuronsPerLayer; i++)
+        for(int j = 0; j < inputNParams; j++)
+          printf("%f ",inputW[i][j]);
+    printf("\n");
+
+    printf("Hide weights\n");
+    for(int l=1; l<nLayers; l++)
+        for(int i =0; i<neuronsPerLayer; i++)
+            for(int j = 0; j < nParams; j++)
+                 printf("%f ",W[l][i][j]);
+    printf("\n");
+
+    printf("Output weights\n");
+    for(int i =0; i<nOutputNeurons; i++)
+    {
+        for(int j = 0; j < nParams; j++)
+            printf("%f ",outputW[i][j]);
+    }
+    printf("\n");
+}
+
+
 float ** FCDNN::Evaluate(float **rawX, int sampleSize)
 {
+
+    //for(int i =0; i<neuronsPerLayer; i++)
+    //    for(int j = 0; j < inputNParams; j++)
+    //      printf("%f ",inputW[i][j]);
+    //printf("\n");
+
+    //for(int l=1; l<nLayers; l++)
+    //    for(int i =0; i<neuronsPerLayer; i++)
+    //        for(int j = 0; j < nParams; j++)
+    //             printf("%f ",W[l][i][j]);
+    //printf("\n");
+    //for(int i =0; i<nOutputNeurons; i++)
+    //{
+    //    for(int j = 0; j < nParams; j++)
+    //        printf("%f ",outputW[i][j]);
+    //}
+    //printf("\n");
+
+
+
+
     float ** answer = new float*[sampleSize];
     for(int i = 0; i<sampleSize; i++)
         answer[i] = new float[nOutputNeurons];
@@ -146,6 +260,15 @@ float ** FCDNN::Evaluate(float **rawX, int sampleSize)
     {
         float *x = AddInputBias(rawX[s]);
         FeedFordward(x);
+
+        //printf("[%f %f]  %f \n",x[0], x[1], output[0]);
+        //for(int l=0; l<nLayers; l++)
+        //    for(int i =0; i<neuronsPerLayer; i++){
+        //        printf("l-%i  y = %f ",l,y[l][i]);
+        //        printf("l-%i  net = %f ",l,net[l][i]);
+        //    }
+
+        //printf("\n");
         for(int i =0; i<nOutputNeurons; i++)
             answer[s][i] = output[i];
     }
@@ -162,8 +285,9 @@ void FCDNN::FeedFordward(float *x)
     for(int i =0; i<neuronsPerLayer; i++)
     {
         float net = 0;
-        for(int j = 0; j < inputNParams; j++)
+        for(int j = 0; j < inputNParams; j++){
             net += inputW[i][j] * x[j];
+        }
         this->net[0][i] = net;
         //falta realizar una funcion
         //Add value to the y of the first layer
@@ -200,10 +324,14 @@ void FCDNN::FeedFordward(float *x)
 
 void FCDNN::GradientBackPropagation(float *t, float **deltas, float *outputDeltas)
 {
+    //printf("\n Back ");
     for(int i = 0; i < nOutputNeurons; i++)
     {
-        outputDeltas[i] = (t[i] - output[i]) * DActivaitonFunciton(outputNet[i]);
+        outputDeltas[i] = (t[i] - output[i]);
+        //printf("(%f - %f)  = %f\n",t[i], output[i],(t[i] - output[i]));
+        //printf("(%f - %f) * %f = %f\n",t[i], output[i], DActivaitonFunciton(outputNet[i]),(t[i] - output[i]) * DActivaitonFunciton(outputNet[i]));
     }
+    //printf("\n END Back ");
 
     for(int i = 0; i < neuronsPerLayer; i++)
     {
@@ -214,7 +342,7 @@ void FCDNN::GradientBackPropagation(float *t, float **deltas, float *outputDelta
         deltas[nLayers-1][i] = sum * DActivaitonFunciton(net[nLayers-1][i]);
     }
 
-    for(int l = nLayers-1; l <= 0; l--)
+    for(int l = nLayers-1; l > 0; l--)
     {
         for(int i =0; i<neuronsPerLayer; i++)
         {
@@ -223,7 +351,7 @@ void FCDNN::GradientBackPropagation(float *t, float **deltas, float *outputDelta
             {
                 sum += W[l][i][j] * deltas[l][i];
             }
-            deltas[l][i] = DActivaitonFunciton(net[l][i]) * sum;
+            deltas[l-1][i] = DActivaitonFunciton(net[l][i]) * sum;
         }
     }	
 }
@@ -233,17 +361,25 @@ void FCDNN::StochasticWeightsUpdate(float *x, float **deltas, float *outputDelta
     //For each input neuron
     for(int i =0; i<neuronsPerLayer; i++)
     {
-        float net = 0;
-        for(int j = 0; j < inputNParams; j++)
+        //printf("-----------------------------\n");
+        for(int j = 0; j < inputNParams; j++){
+            //printf("%f + %f * %f * %f = %f",inputW[i][j],this->learningRate, deltas[0][i], x[j],inputW[i][j] + this->learningRate * deltas[0][i] * x[j]);
             inputW[i][j] = inputW[i][j] + this->learningRate * deltas[0][i] * x[j];
+            //printf(" ## %f",inputW[i][j]);
+            //printf("\n");
+        }
+            
     }
+    //printf("################################\n");
 
     //For each hidden layer
     for(int l=1; l<nLayers; l++)
         for(int i =0; i<neuronsPerLayer; i++)
         {
-            for(int j = 0; j < nParams; j++)
+            for(int j = 0; j < nParams; j++){
                  W[l][i][j]= W[l][i][j] + learningRate * deltas[l][i] * y[l-1][j];
+                 //printf("%f %f %f\n",W[l][i][j], deltas[l][i], y[l-1][j]);
+            }
 
         }
     //Output

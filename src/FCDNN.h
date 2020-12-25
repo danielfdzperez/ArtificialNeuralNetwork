@@ -54,5 +54,9 @@ class FCDNN
 
 	float * AddInputBias(float *x);
 
+    float RandomNumber();
+
+    void ShowWeights();
+
 
 };
